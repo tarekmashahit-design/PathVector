@@ -1,0 +1,91 @@
+{
+  "devices": [
+    {
+      "id": "rtr-gw-01",
+      "name": "RTR-GW-01",
+      "type": "Router",
+      "model": "ISR4321",
+      "position": { "x": 400, "y": 60 },
+      "config": "hostname RTR-GW-01\n!\nenable secret $1$mERr$hx5rVt7rPNoS4wqbXKX7m4\n!\ninterface GigabitEthernet0/0\n description Uplink to SW-CORE-01\n ip address 10.0.0.1 255.255.255.252\n no shutdown\n!\ninterface GigabitEthernet0/1\n description Uplink to SW-CORE-02\n ip address 10.0.0.5 255.255.255.252\n no shutdown\n!\nline vty 0 4\n transport input telnet\n!\nend",
+      "interfaces": [
+        { "name": "GigabitEthernet0/0", "status": "up", "config_lines": ["description Uplink to SW-CORE-01", "ip address 10.0.0.1 255.255.255.252", "no shutdown"] },
+        { "name": "GigabitEthernet0/1", "status": "up", "config_lines": ["description Uplink to SW-CORE-02", "ip address 10.0.0.5 255.255.255.252", "no shutdown"] }
+      ]
+    },
+    {
+      "id": "sw-core-01",
+      "name": "SW-CORE-01",
+      "type": "Switch",
+      "model": "Catalyst 9500-40X",
+      "position": { "x": 220, "y": 220 },
+      "config": "hostname SW-CORE-01\n!\nenable secret $1$mERr$hx5rVt7rPNoS4wqbXKX7m0\n!\nsnmp-server community public RO\n!\ninterface GigabitEthernet0/1\n description Uplink to RTR-GW-01\n switchport mode trunk\n switchport trunk encapsulation dot1q\n switchport trunk native vlan 1\n!\ninterface GigabitEthernet0/2\n description Core interconnect to SW-CORE-02\n switchport mode trunk\n switchport trunk encapsulation dot1q\n switchport trunk native vlan 1\n!\ninterface GigabitEthernet0/3\n description Uplink to SW-ACC-01\n switchport mode trunk\n switchport trunk encapsulation dot1q\n switchport trunk native vlan 10\n!\ninterface GigabitEthernet0/4\n description Redundant uplink to SW-ACC-02\n switchport mode trunk\n switchport trunk encapsulation dot1q\n switchport trunk native vlan 10\n!\nspanning-tree mode rapid-pvst\n!\nline vty 0 4\n transport input ssh\n!\nend",
+      "interfaces": [
+        { "name": "GigabitEthernet0/1", "status": "up", "config_lines": ["switchport mode trunk", "switchport trunk encapsulation dot1q", "switchport trunk native vlan 1"] },
+        { "name": "GigabitEthernet0/2", "status": "up", "config_lines": ["switchport mode trunk", "switchport trunk encapsulation dot1q", "switchport trunk native vlan 1"] },
+        { "name": "GigabitEthernet0/3", "status": "up", "config_lines": ["switchport mode trunk", "switchport trunk encapsulation dot1q", "switchport trunk native vlan 10"] },
+        { "name": "GigabitEthernet0/4", "status": "up", "config_lines": ["switchport mode trunk", "switchport trunk encapsulation dot1q", "switchport trunk native vlan 10"] }
+      ]
+    },
+    {
+      "id": "sw-core-02",
+      "name": "SW-CORE-02",
+      "type": "Switch",
+      "model": "Catalyst 9500-40X",
+      "position": { "x": 580, "y": 220 },
+      "config": "hostname SW-CORE-02\n!\nenable secret $1$mERr$hx5rVt7rPNoS4wqbXKX7m1\n!\nsnmp-server community public RO\n!\ninterface GigabitEthernet0/1\n description Uplink to RTR-GW-01\n switchport mode trunk\n switchport trunk encapsulation dot1q\n switchport trunk native vlan 1\n!\ninterface GigabitEthernet0/2\n description Core interconnect to SW-CORE-01\n switchport mode trunk\n switchport trunk encapsulation dot1q\n switchport trunk native vlan 99\n!\ninterface GigabitEthernet0/3\n description Uplink to SW-ACC-02\n switchport mode trunk\n switchport trunk encapsulation dot1q\n switchport trunk native vlan 10\n!\ninterface GigabitEthernet0/4\n description Redundant uplink to SW-ACC-01\n switchport mode trunk\n switchport trunk encapsulation dot1q\n switchport trunk native vlan 10\n!\nspanning-tree mode rapid-pvst\n!\nline vty 0 4\n transport input ssh\n!\nend",
+      "interfaces": [
+        { "name": "GigabitEthernet0/1", "status": "up", "config_lines": ["switchport mode trunk", "switchport trunk encapsulation dot1q", "switchport trunk native vlan 1"] },
+        { "name": "GigabitEthernet0/2", "status": "up", "config_lines": ["switchport mode trunk", "switchport trunk encapsulation dot1q", "switchport trunk native vlan 99"] },
+        { "name": "GigabitEthernet0/3", "status": "up", "config_lines": ["switchport mode trunk", "switchport trunk encapsulation dot1q", "switchport trunk native vlan 10"] },
+        { "name": "GigabitEthernet0/4", "status": "up", "config_lines": ["switchport mode trunk", "switchport trunk encapsulation dot1q", "switchport trunk native vlan 10"] }
+      ]
+    },
+    {
+      "id": "sw-acc-01",
+      "name": "SW-ACC-01",
+      "type": "Switch",
+      "model": "Catalyst 9200L-24P",
+      "position": { "x": 120, "y": 380 },
+      "config": "hostname SW-ACC-01\n!\nenable secret $1$mERr$hx5rVt7rPNoS4wqbXKX7m2\n!\nsnmp-server community public RO\n!\ninterface GigabitEthernet0/1\n description Uplink to SW-CORE-01\n switchport mode trunk\n switchport trunk encapsulation isl\n switchport trunk native vlan 10\n!\ninterface GigabitEthernet0/2\n description Redundant uplink to SW-CORE-02\n switchport mode trunk\n switchport trunk encapsulation dot1q\n switchport trunk native vlan 10\n!\ninterface GigabitEthernet0/3\n description Access port to SRV-01\n switchport mode access\n switchport access vlan 20\n spanning-tree portfast\n spanning-tree bpduguard enable\n!\nspanning-tree mode rapid-pvst\n!\nline vty 0 4\n transport input ssh\n!\nend",
+      "interfaces": [
+        { "name": "GigabitEthernet0/1", "status": "up", "config_lines": ["switchport mode trunk", "switchport trunk encapsulation isl", "switchport trunk native vlan 10"] },
+        { "name": "GigabitEthernet0/2", "status": "up", "config_lines": ["switchport mode trunk", "switchport trunk encapsulation dot1q", "switchport trunk native vlan 10"] },
+        { "name": "GigabitEthernet0/3", "status": "up", "config_lines": ["switchport mode access", "switchport access vlan 20", "spanning-tree portfast", "spanning-tree bpduguard enable"] }
+      ]
+    },
+    {
+      "id": "sw-acc-02",
+      "name": "SW-ACC-02",
+      "type": "Switch",
+      "model": "Catalyst 9200L-24P",
+      "position": { "x": 680, "y": 380 },
+      "config": "hostname SW-ACC-02\n!\nenable secret $1$mERr$hx5rVt7rPNoS4wqbXKX7m3\n!\nsnmp-server community public RO\n!\ninterface GigabitEthernet0/1\n description Uplink to SW-CORE-02\n switchport mode trunk\n switchport trunk encapsulation dot1q\n switchport trunk native vlan 10\n!\ninterface GigabitEthernet0/2\n description Redundant uplink to SW-CORE-01\n switchport mode trunk\n switchport trunk encapsulation dot1q\n switchport trunk native vlan 10\n!\nspanning-tree mode rapid-pvst\n!\nline vty 0 4\n transport input ssh\n!\nend",
+      "interfaces": [
+        { "name": "GigabitEthernet0/1", "status": "up", "config_lines": ["switchport mode trunk", "switchport trunk encapsulation dot1q", "switchport trunk native vlan 10"] },
+        { "name": "GigabitEthernet0/2", "status": "up", "config_lines": ["switchport mode trunk", "switchport trunk encapsulation dot1q", "switchport trunk native vlan 10"] }
+      ]
+    },
+    {
+      "id": "srv-01",
+      "name": "SRV-01",
+      "type": "Server",
+      "model": "Dell PowerEdge R650",
+      "position": { "x": 120, "y": 540 },
+      "config": "hostname SRV-01\n!\ninterface GigabitEthernet0/0\n description Uplink to SW-ACC-01\n ip address 10.20.0.10 255.255.255.0\n!\nend",
+      "interfaces": [
+        { "name": "GigabitEthernet0/0", "status": "up", "config_lines": ["description Uplink to SW-ACC-01", "ip address 10.20.0.10 255.255.255.0"] }
+      ]
+    }
+  ],
+  "links": [
+    { "source_device": "rtr-gw-01", "source_interface": "GigabitEthernet0/0", "target_device": "sw-core-01", "target_interface": "GigabitEthernet0/1" },
+    { "source_device": "rtr-gw-01", "source_interface": "GigabitEthernet0/1", "target_device": "sw-core-02", "target_interface": "GigabitEthernet0/1" },
+    { "source_device": "sw-core-01", "source_interface": "GigabitEthernet0/2", "target_device": "sw-core-02", "target_interface": "GigabitEthernet0/2" },
+    { "source_device": "sw-core-01", "source_interface": "GigabitEthernet0/3", "target_device": "sw-acc-01", "target_interface": "GigabitEthernet0/1" },
+    { "source_device": "sw-core-02", "source_interface": "GigabitEthernet0/3", "target_device": "sw-acc-02", "target_interface": "GigabitEthernet0/1" },
+    { "source_device": "sw-core-01", "source_interface": "GigabitEthernet0/4", "target_device": "sw-acc-02", "target_interface": "GigabitEthernet0/2" },
+    { "source_device": "sw-core-02", "source_interface": "GigabitEthernet0/4", "target_device": "sw-acc-01", "target_interface": "GigabitEthernet0/2" },
+    { "source_device": "sw-acc-01", "source_interface": "GigabitEthernet0/3", "target_device": "srv-01", "target_interface": "GigabitEthernet0/0" }
+  ],
+  "warnings": []
+}

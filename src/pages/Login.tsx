@@ -46,8 +46,7 @@ export function Login() {
         setLoading(false);
         setSuccess(true);
         localStorage.setItem('pv_auth', '1');
-        const destination = localStorage.getItem('onboarding_complete') === '1' ? '/app/dashboard' : '/onboarding';
-        setTimeout(() => navigate(destination), 650);
+        setTimeout(() => navigate('/app/mode'), 650);
       } else {
         setLoading(false);
         setError(true);

@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion';
-import { Card } from '../components/primitives/Card';
 import { InsightCards } from '../components/analytics/InsightCards';
 import { AnomalyTimeline } from '../components/analytics/AnomalyTimeline';
 import { PredictionsTable } from '../components/analytics/PredictionsTable';

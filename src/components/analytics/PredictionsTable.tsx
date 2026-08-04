@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpDown } from 'lucide-react';
-import { predictions, type Prediction } from '../../data/analytics';
+import { predictions } from '../../data/analytics';
 import { Badge } from '../primitives/Badge';
 
 type SortKey = 'device' | 'confidence' | 'horizonRisk';

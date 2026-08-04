@@ -15,7 +15,7 @@ interface Placed {
 
 const groupRadius: Record<string, number> = { router: 70, core: 115, access: 165, ap: 200, server: 140 };
 
-function positionFor(index: number, group: string, seed: number) {
+function positionFor(group: string, seed: number) {
   const angle = (seed * 47.3) % 360;
   const rad = (angle * Math.PI) / 180;
   const r = groupRadius[group] + ((seed * 13) % 20);
@@ -33,7 +33,7 @@ export function DiscoveryPulse({ onComplete }: { onComplete: (count: number) => 
     discoveryScript.forEach((d, i) => {
       timers.push(
         setTimeout(() => {
-          const pos = positionFor(i, d.group, i + 1);
+          const pos = positionFor(d.group, i + 1);
           setPlaced((prev) => (prev.some((p) => p.id === d.id) ? prev : [...prev, { id: d.id, name: d.name, model: d.model, type: d.type, x: pos.x, y: pos.y }]));
           setLog((prev) => [...prev, logLineFor(d)]);
         }, 350 * (i + 1)),

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { RotateCw, ShieldOff, UploadCloud, FileText } from 'lucide-react';
 import type { Device } from '../../data/devices';

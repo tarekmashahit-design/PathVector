@@ -106,7 +106,7 @@ export function AmbientNetworkCanvas({ className, density = 26 }: { className?: 
         ctx!.stroke();
 
         if (e.active && !reduced) {
-          e.packets.forEach((p0, idx) => {
+          e.packets.forEach((p0) => {
             const p = (p0 + t * 0.00006 * e.speed * 10) % 1;
             const px = a.x + (b.x - a.x) * p;
             const py = a.y + (b.y - a.y) * p;

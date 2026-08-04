@@ -214,7 +214,7 @@ export function Step4Credentials() {
           </button>
         </div>
         <ul className="space-y-2">
-          {(s.testResults.length ? s.testResults : testSequence.map((t) => ({ protocol: t.protocol, status: 'pending' as const, message: '' }))).map((r) => (
+          {(s.testResults.length ? s.testResults : testSequence.map((t) => ({ protocol: t.protocol, status: 'pending' as const, message: '', fix: t.fix }))).map((r) => (
             <li key={r.protocol} className="rounded-inset border border-border-subtle bg-surface px-3 py-2.5">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2 font-mono text-xs text-text-bright">
