@@ -11,9 +11,12 @@ from routers import demo  # noqa: E402 (must come after load_dotenv)
 
 app = FastAPI(title="PathVector Demo API")
 
+_default_origins = "http://localhost:5173,http://127.0.0.1:5173"
+_origins = [o.strip() for o in os.environ.get("CORS_ORIGIN", _default_origins).split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.environ.get("CORS_ORIGIN", "http://localhost:5173")],
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

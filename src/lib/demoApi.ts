@@ -1,6 +1,9 @@
 import type { DemoDevice, DemoFinding, DemoScores, DemoTopology } from '../types/demo';
 
-export const DEMO_API_BASE = 'http://localhost:8000';
+// Set VITE_DEMO_API_BASE in the deployment environment (e.g. Vercel project
+// settings) to point at the hosted backend. Falls back to localhost for
+// local development, where the FastAPI server normally runs on :8000.
+export const DEMO_API_BASE = import.meta.env.VITE_DEMO_API_BASE ?? 'http://localhost:8000';
 
 export async function uploadDemoFile(file: File): Promise<{ session_id: string }> {
   const form = new FormData();

@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: pathvector-api
+    runtime: python
+    rootDir: server
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: NVIDIA_NIM_API_KEY
+        sync: false
+      - key: NVIDIA_NIM_BASE_URL
+        value: https://integrate.api.nvidia.com/v1
+      - key: NVIDIA_NIM_MODEL
+        value: mistralai/mistral-nemotron
+      - key: SESSION_TTL_SECONDS
+        value: "7200"
+      - key: CORS_ORIGIN
+        sync: false
