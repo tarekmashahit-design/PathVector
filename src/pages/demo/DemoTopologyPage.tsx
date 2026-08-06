@@ -4,7 +4,7 @@ import { useDemoStore } from '../../store/demoStore';
 import { NodeShape } from '../../components/topology/NodeShape';
 import { SlideOver } from '../../components/primitives/SlideOver';
 import { Badge, StatusBadge } from '../../components/primitives/Badge';
-import { computeDegrees, mapDemoType, normalizePositions } from '../../lib/demoDeviceMap';
+import { computeDegrees, mapDemoType, layeredPositions } from '../../lib/demoDeviceMap';
 
 export function DemoTopologyPage() {
   const { topology, findings } = useDemoStore();
@@ -14,7 +14,8 @@ export function DemoTopologyPage() {
 
   const devices = topology?.devices ?? [];
   const links = topology?.links ?? [];
-  const positions = useMemo(() => normalizePositions(devices), [devices]);
+  const layout = useMemo(() => layeredPositions(devices, links), [devices, links]);
+  const positions = layout.positions;
   const degrees = useMemo(() => computeDegrees(devices, links), [devices, links]);
 
   const issuesByDevice = useMemo(() => {
@@ -29,12 +30,12 @@ export function DemoTopologyPage() {
 
   return (
     <div className="relative h-[calc(100vh-64px)] w-full app-canvas-texture">
-      <svg viewBox="0 0 100 100" className="h-full w-full">
+      <svg viewBox={`0 0 ${layout.width} ${layout.height}`} className="h-full w-full">
         {links.map((l, i) => {
           const a = positions[l.source_device];
           const b = positions[l.target_device];
           if (!a || !b) return null;
-          return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="rgba(56,189,248,0.22)" strokeWidth={0.35} />;
+          return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="rgba(56,189,248,0.3)" strokeWidth={0.4} />;
         })}
         {devices.map((d) => {
           const pos = positions[d.id];

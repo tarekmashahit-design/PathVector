@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Waypoints, ShieldAlert, Server, Sparkles, UploadCloud } from 'lucide-react';
+import { LayoutDashboard, Waypoints, ShieldAlert, Server, Sparkles, UploadCloud, Download } from 'lucide-react';
 import { Logomark } from '../icons/Logomark';
 import { Badge } from '../primitives/Badge';
 import { useDemoStore } from '../../store/demoStore';
 import { fetchFindings, fetchScores, fetchTopology, fetchSummary } from '../../lib/demoApi';
+import { buildReportMarkdown, downloadReport } from '../../lib/demoReport';
 import { cn } from '../../lib/cn';
 
 const navItems = [
@@ -86,6 +87,23 @@ export function DemoShell() {
             </div>
             <p className="truncate font-mono text-[11px] text-text-muted">{store.filename}</p>
           </div>
+          <button
+            disabled={!store.analysisComplete || !store.topology || !store.scores}
+            onClick={() => {
+              if (!store.topology || !store.scores) return;
+              const md = buildReportMarkdown({
+                filename: store.filename ?? 'network.pkt',
+                topology: store.topology,
+                findings: store.findings,
+                scores: store.scores,
+                summary: store.summary ?? '',
+              });
+              downloadReport(md, store.filename ?? 'network');
+            }}
+            className="flex items-center gap-2 rounded-btn border border-border-subtle px-3 py-1.5 text-xs text-text-muted transition-colors hover:border-blue/40 hover:text-text-bright disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Download size={13} /> Export Report
+          </button>
         </header>
         <main className="flex-1 overflow-y-auto">
           <Outlet />
