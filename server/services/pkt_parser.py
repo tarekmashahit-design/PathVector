@@ -503,10 +503,18 @@ def _text_of(elem: ET.Element | None, default: str = "") -> str:
 
 
 def _extract_config(device_elem: ET.Element) -> str:
+    # Real PT 6.2-9.x exports store the running-config as one <LINE> element
+    # per config line under ENGINE/.../RUNNINGCONFIG, not as a single text blob.
+    running = _find_first(device_elem, "RUNNINGCONFIG", "STARTUPCONFIG")
+    if running is not None:
+        line_elems = running.findall("LINE")
+        if line_elems:
+            return "\n".join((le.text or "") for le in line_elems).strip("\n")
+
     engine = _find_first(device_elem, "ENGINE", "RUNNINGCONFIG", "STARTUPCONFIG")
     if engine is None:
         return ""
-    # Some schemas nest the raw config under a CONFIG/RUNNING child, others
+    # Older/other schemas nest the raw config under a CONFIG/RUNNING child, others
     # put it directly as element text.
     config_child = _find_first(engine, "CONFIG", "RUNNING", "STARTUP")
     if config_child is not None and config_child.text:
@@ -514,6 +522,37 @@ def _extract_config(device_elem: ET.Element) -> str:
     if engine.text:
         return engine.text.strip("\n")
     return ""
+
+
+def _interfaces_from_config(config: str) -> list[Interface]:
+    """Real PT exports don't label their <PORT> blocks with interface names,
+    but every device's running-config lists 'interface X' blocks explicitly —
+    that's a far more reliable source of interface names than the port tree."""
+    interfaces: list[Interface] = []
+    current_name: str | None = None
+    current_lines: list[str] = []
+
+    def flush() -> None:
+        if current_name is None:
+            return
+        status = "down" if any("shutdown" in l for l in current_lines) else "up"
+        interfaces.append(Interface(name=current_name, status=status, config_lines=list(current_lines)))
+
+    for raw in config.splitlines():
+        stripped = raw.strip()
+        if stripped.startswith("interface "):
+            flush()
+            current_name = stripped[len("interface "):].strip()
+            current_lines = []
+        elif current_name is not None:
+            if stripped == "!":
+                flush()
+                current_name = None
+                current_lines = []
+            elif stripped:
+                current_lines.append(stripped)
+    flush()
+    return interfaces
 
 
 def _config_lines_for_interface(config: str, iface_name: str) -> list[str]:
@@ -540,7 +579,16 @@ def _extract_devices(root: ET.Element) -> dict[str, Device]:
     device_elems = root.findall(".//DEVICE") or root.findall(".//NETWORK/DEVICES/DEVICE") or root.findall(".//DEVICES/DEVICE")
 
     for idx, dev_elem in enumerate(device_elems):
-        dev_id = dev_elem.get("id") or dev_elem.get("ID") or dev_elem.get("saveRef") or f"pkt-device-{idx}"
+        # Real PT 6.2-9.x exports key devices by a <SAVE_REF_ID>save-ref-id:NNN</SAVE_REF_ID>
+        # element (referenced verbatim by <FROM>/<TO> in links) rather than an "id" attribute.
+        save_ref_elem = _find_first(dev_elem, "SAVE_REF_ID")
+        dev_id = (
+            _text_of(save_ref_elem)
+            or dev_elem.get("id")
+            or dev_elem.get("ID")
+            or dev_elem.get("saveRef")
+            or f"pkt-device-{idx}"
+        )
 
         name_elem = _find_first(dev_elem, "SAVE_REF_NAME", "NAME", "PROPERTY/NAME")
         name = _text_of(name_elem) or dev_elem.get("name", f"Device-{idx}")
@@ -549,28 +597,44 @@ def _extract_devices(root: ET.Element) -> dict[str, Device]:
         raw_type = _text_of(type_elem) or dev_elem.get("type", "")
         device_type = _map_type(raw_type)
 
-        model_elem = _find_first(dev_elem, "MODEL", "PROPERTY/MODEL")
-        model = _text_of(model_elem)
+        # Real exports carry the model as an attribute on <TYPE model="2911">Router</TYPE>;
+        # older/synthetic schemas use a separate <MODEL> element.
+        model = (type_elem.get("model") or type_elem.get("customModel") or "") if type_elem is not None else ""
+        if not model:
+            model_elem = _find_first(dev_elem, "MODEL", "PROPERTY/MODEL")
+            model = _text_of(model_elem)
 
-        pos_elem = _find_first(dev_elem, "POSITION", "VISUAL/POSITION", "WORKSPACE/LOGICAL")
-        x = float(pos_elem.get("x", 0)) if pos_elem is not None else 0.0
-        y = float(pos_elem.get("y", 0)) if pos_elem is not None else 0.0
+        # Real exports place canvas coordinates as <WORKSPACE><LOGICAL><X>/<Y></LOGICAL>
+        # child elements; older/synthetic schemas use x/y attributes on a POSITION element.
+        x = y = 0.0
+        logical_elem = _find_first(dev_elem, "WORKSPACE/LOGICAL")
+        if logical_elem is not None and logical_elem.find("X") is not None:
+            x = float(_text_of(logical_elem.find("X"), "0") or 0)
+            y = float(_text_of(logical_elem.find("Y"), "0") or 0)
+        else:
+            pos_elem = _find_first(dev_elem, "POSITION", "VISUAL/POSITION")
+            if pos_elem is not None:
+                x = float(pos_elem.get("x", 0))
+                y = float(pos_elem.get("y", 0))
 
         config = _extract_config(dev_elem)
 
-        iface_elems = dev_elem.findall(".//PORT") or dev_elem.findall(".//INTERFACE")
-        interfaces: list[Interface] = []
-        for pe in iface_elems:
-            iname = pe.get("name") or _text_of(_find_first(pe, "NAME"))
-            if not iname:
-                continue
-            interfaces.append(
-                Interface(
-                    name=iname,
-                    status="up" if pe.get("status", "up") != "down" else "down",
-                    config_lines=_config_lines_for_interface(config, iname) if config else [],
+        # Real exports don't label <PORT> blocks with interface names — derive them
+        # from the running-config's "interface X" headers instead (far more reliable).
+        interfaces = _interfaces_from_config(config) if config else []
+        if not interfaces:
+            iface_elems = dev_elem.findall(".//PORT") or dev_elem.findall(".//INTERFACE")
+            for pe in iface_elems:
+                iname = pe.get("name") or _text_of(_find_first(pe, "NAME"))
+                if not iname:
+                    continue
+                interfaces.append(
+                    Interface(
+                        name=iname,
+                        status="up" if pe.get("status", "up") != "down" else "down",
+                        config_lines=_config_lines_for_interface(config, iname) if config else [],
+                    )
                 )
-            )
 
         devices[dev_id] = Device(
             id=dev_id,
@@ -584,11 +648,45 @@ def _extract_devices(root: ET.Element) -> dict[str, Device]:
     return devices
 
 
+def _link_from_cable_sequence(cable: ET.Element) -> Link | None:
+    """Real PT exports encode each cable as a flat, ordered child sequence
+    inside <CABLE>: ...<FROM>save-ref-id:X</FROM><PORT>Gi0/1</PORT><TO>save-ref-id:Y</TO><PORT>Gi0/2</PORT>...
+    The two <PORT> elements carry only interface names, as text — the device
+    each belongs to is determined purely by which of FROM/TO preceded it."""
+    from_ref = to_ref = None
+    from_iface = to_iface = None
+    pending: str | None = None
+    for child in cable:
+        if child.tag == "FROM":
+            from_ref = (child.text or "").strip()
+            pending = "from"
+        elif child.tag == "TO":
+            to_ref = (child.text or "").strip()
+            pending = "to"
+        elif child.tag == "PORT":
+            iface = (child.text or "").strip()
+            if pending == "from" and from_iface is None:
+                from_iface = iface
+            elif pending == "to" and to_iface is None:
+                to_iface = iface
+    if from_ref and to_ref and from_iface and to_iface:
+        return Link(source_device=from_ref, source_interface=from_iface, target_device=to_ref, target_interface=to_iface)
+    return None
+
+
 def _extract_links(root: ET.Element) -> list[Link]:
     links: list[Link] = []
-    link_elems = root.findall(".//CONNECTION") or root.findall(".//WIRE") or root.findall(".//LINKS/LINK")
+    link_elems = root.findall(".//LINKS/LINK") or root.findall(".//CONNECTION") or root.findall(".//WIRE")
 
     for le in link_elems:
+        cable = _find_first(le, "CABLE") or le
+
+        link = _link_from_cable_sequence(cable)
+        if link is not None:
+            links.append(link)
+            continue
+
+        # Older/synthetic schema: two <PORT device="..." name="..."/> siblings under CABLE.
         ends = le.findall(".//CABLE/PORT") or le.findall(".//PORT") or le.findall(".//ENDPOINT")
         if len(ends) < 2:
             continue
