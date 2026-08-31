@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import { Gauge } from '../components/primitives/Gauge';
 import { StatTile } from '../components/primitives/StatTile';
 import { Card } from '../components/primitives/Card';
@@ -7,65 +9,110 @@ import { BandwidthChart } from '../components/dashboard/BandwidthChart';
 import { SeverityDonut } from '../components/dashboard/SeverityDonut';
 import { LiveAlertsFeed } from '../components/dashboard/LiveAlertsFeed';
 import { RiskLeaderboard } from '../components/dashboard/RiskLeaderboard';
-import { useAppShell } from '../context/AppShellContext';
-import { dashboardStats, sparkTemplates } from '../data/metrics';
 import { staggerContainer, staggerItem } from '../components/shell/PageTransition';
+import { useRequireLiveSession } from '../hooks/useRequireLiveSession';
+import { fetchLiveDashboard, LiveSessionError, type LiveDashboardStats } from '../lib/liveApi';
+import type { Alert } from '../data/alerts';
+import type { RiskDevice } from '../data/metrics';
 
 export function Dashboard() {
-  const { liveEvents } = useAppShell();
-  const activeAlerts = liveEvents.alerts.filter((a) => a.severity !== 'info').length;
+  const hasSession = useRequireLiveSession();
+  const navigate = useNavigate();
+
+  const [stats, setStats] = useState<LiveDashboardStats | null>(null);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [bandwidthSeries, setBandwidthSeries] = useState<{ hour: string; mbps: number }[] | undefined>(undefined);
+  const [severityBreakdown, setSeverityBreakdown] = useState<{ name: string; value: number; color: string }[] | undefined>(undefined);
+  const [riskLeaderboard, setRiskLeaderboard] = useState<RiskDevice[] | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hasSession) return;
+    let cancelled = false;
+    setLoading(true);
+    fetchLiveDashboard()
+      .then((data) => {
+        if (cancelled) return;
+        setStats(data.stats);
+        setAlerts(data.alerts);
+        setBandwidthSeries(data.bandwidthSeries);
+        setSeverityBreakdown(data.severityBreakdown);
+        setRiskLeaderboard(data.riskLeaderboard);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (err instanceof LiveSessionError) {
+          navigate('/app/live/connect', { replace: true });
+          return;
+        }
+        setError(err instanceof Error ? err.message : 'Failed to load live dashboard');
+      })
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [hasSession, navigate]);
+
+  const activeAlerts = alerts.filter((a) => a.severity !== 'info').length;
+  const criticalAlerts = alerts.filter((a) => a.severity === 'critical').length;
+
+  if (loading || !stats) {
+    return (
+      <div className="flex h-[calc(100vh-64px)] items-center justify-center gap-3 text-text-muted">
+        <Loader2 size={16} className="animate-spin" />
+        <span className="font-mono text-xs">{error ?? 'Loading live dashboard…'}</span>
+      </div>
+    );
+  }
 
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="show" className="mx-auto max-w-[1440px] space-y-5 p-6">
       {/* Hero row */}
       <motion.div variants={staggerItem} className="flex flex-col gap-5 lg:flex-row lg:items-stretch">
         <div className="flex flex-shrink-0 items-center justify-center rounded-hero border border-border-subtle bg-surface p-8 shadow-inset-top lg:w-[340px]">
-          <Gauge value={dashboardStats.healthScore} label="Network Health" sublabel={`▲ ${dashboardStats.healthTrend} pts / 24h`} />
+          <Gauge value={stats.healthScore} label="Network Health" sublabel={`▲ ${stats.healthTrend} pts / 24h`} />
         </div>
         <div className="grid flex-1 grid-cols-2 gap-4 xl:grid-cols-4">
           <StatTile
             label="Total Devices"
-            value={dashboardStats.totalDevices}
-            spark={sparkTemplates.devices}
-            trend="+1 this week"
-            trendDirection="up"
-            caption="22 healthy · 1 offline"
+            value={stats.totalDevices}
+            trend="live"
+            trendDirection="flat"
+            caption="switch + CDP neighbors"
           />
           <StatTile
             label="Active Alerts"
             value={activeAlerts}
-            spark={sparkTemplates.alerts}
             sparkColor="#FBBF24"
             emphasize={activeAlerts > 0 ? 'amber' : null}
             icon={activeAlerts > 0 ? <AlertTriangle size={13} className="text-amber" /> : undefined}
-            trend={activeAlerts > 3 ? `+${activeAlerts - 3} today` : 'steady'}
-            trendDirection={activeAlerts > 3 ? 'up' : 'flat'}
-            trendTone={activeAlerts > 3 ? 'bad' : 'neutral'}
-            caption="1 critical"
+            trend={criticalAlerts > 0 ? `${criticalAlerts} critical` : 'steady'}
+            trendDirection={criticalAlerts > 0 ? 'up' : 'flat'}
+            trendTone={criticalAlerts > 0 ? 'bad' : 'neutral'}
+            caption={`${criticalAlerts} critical`}
           />
           <StatTile
             label="Uptime"
-            value={dashboardStats.uptime}
+            value={stats.uptime}
             decimals={1}
             suffix="%"
-            spark={sparkTemplates.uptime}
             sparkColor="#34D399"
-            trend="-0.1% vs last week"
-            trendDirection="down"
+            trend="live poll"
+            trendDirection="flat"
             trendTone="neutral"
-            caption="SLA target 99.5%"
+            caption="from current connection"
           />
           <StatTile
             label="Avg Latency"
-            value={dashboardStats.avgLatency}
+            value={stats.avgLatency}
             decimals={1}
             suffix="ms"
-            spark={sparkTemplates.latency}
             sparkColor="#22D3EE"
-            trend="-0.3ms vs 24h avg"
-            trendDirection="down"
-            trendTone="good"
-            caption="p95 4.1ms"
+            trend="not measured"
+            trendDirection="flat"
+            trendTone="neutral"
+            caption="requires ICMP probing"
           />
         </div>
       </motion.div>
@@ -74,12 +121,12 @@ export function Dashboard() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <motion.div variants={staggerItem} className="lg:col-span-2">
           <Card>
-            <BandwidthChart />
+            <BandwidthChart data={bandwidthSeries} />
           </Card>
         </motion.div>
         <motion.div variants={staggerItem}>
           <Card className="h-full">
-            <SeverityDonut />
+            <SeverityDonut data={severityBreakdown} />
           </Card>
         </motion.div>
       </div>
@@ -88,12 +135,12 @@ export function Dashboard() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <motion.div variants={staggerItem} className="lg:col-span-2">
           <Card>
-            <LiveAlertsFeed alerts={liveEvents.alerts} />
+            <LiveAlertsFeed alerts={alerts} />
           </Card>
         </motion.div>
         <motion.div variants={staggerItem}>
           <Card>
-            <RiskLeaderboard />
+            <RiskLeaderboard data={riskLeaderboard} />
           </Card>
         </motion.div>
       </div>

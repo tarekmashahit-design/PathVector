@@ -10,7 +10,7 @@ export function ModeSelect() {
 
   function launchLive() {
     const onboardingDone = localStorage.getItem('onboarding_complete') === '1';
-    navigate(onboardingDone ? '/app/dashboard' : '/onboarding');
+    navigate(onboardingDone ? '/app/live/connect' : '/onboarding');
   }
 
   return (

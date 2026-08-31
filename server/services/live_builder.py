@@ -266,6 +266,46 @@ def build_alerts(switch_device: dict) -> list[dict]:
     return alerts
 
 
+def build_bandwidth_series(switch_device: dict) -> list[dict]:
+    """The frontend's chart expects an {hour, mbps} series. A single SSH
+    poll only ever has one real reading — rather than fabricate 24h of
+    history, this returns that one reading as a 2-point series (so the
+    chart still renders a line) both points carrying the same real value."""
+    import datetime
+
+    now = datetime.datetime.utcnow()
+    mbps = _dominant_throughput(switch_device["interfaces"])
+    prev_hour = (now - datetime.timedelta(hours=1)).strftime("%H:00")
+    this_hour = now.strftime("%H:00")
+    return [{"hour": prev_hour, "mbps": mbps}, {"hour": this_hour, "mbps": mbps}]
+
+
+def build_severity_breakdown(alerts: list[dict]) -> list[dict]:
+    counts = {"critical": 0, "warning": 0, "info": 0}
+    for a in alerts:
+        counts[a["severity"]] = counts.get(a["severity"], 0) + 1
+    color = {"critical": "#F87171", "warning": "#FBBF24", "info": "#38BDF8"}
+    return [{"name": sev.capitalize(), "value": n, "color": color[sev]} for sev, n in counts.items()]
+
+
+def build_risk_leaderboard(devices: list[dict]) -> list[dict]:
+    """Risk score derived from real signal: down/errored interfaces and
+    high cpu/mem on each polled device — not random."""
+
+    def risk_of(d: dict) -> int:
+        score = 0
+        for row in d["interfaces"]:
+            if row["status"] == "down":
+                score += 30
+            score += min(30, row["errors"] // 5)
+        score += max(0, d["cpu"] - 60)
+        score += max(0, d["mem"] - 60)
+        return min(100, score)
+
+    ranked = sorted(devices, key=risk_of, reverse=True)
+    return [{"rank": i + 1, "device": d["name"], "risk": risk_of(d)} for i, d in enumerate(ranked[:5])]
+
+
 def _iso(epoch: float) -> str:
     import datetime
 

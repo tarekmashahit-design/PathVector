@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, Maximize } from 'lucide-react';
-import { topoNodes, topoEdges, type TopoNode } from '../../data/topology';
+import { topoNodes as seededTopoNodes, topoEdges as seededTopoEdges, type TopoNode, type TopoEdge } from '../../data/topology';
 import { NodeShape, nodeRadius } from './NodeShape';
 import { cn } from '../../lib/cn';
 
@@ -10,9 +10,13 @@ const edgeColor = { healthy: 'rgba(56,189,248,0.28)', degraded: 'rgba(251,191,36
 interface Props {
   floor: 'all' | 1 | 2 | 3;
   onSelect: (id: string) => void;
+  nodes?: TopoNode[];
+  edges?: TopoEdge[];
 }
 
-export function TopologyGraph({ floor, onSelect }: Props) {
+export function TopologyGraph({ floor, onSelect, nodes: nodesProp, edges: edgesProp }: Props) {
+  const topoNodes = nodesProp ?? seededTopoNodes;
+  const topoEdges = edgesProp ?? seededTopoEdges;
   const svgRef = useRef<SVGSVGElement>(null);
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
   const [dragging, setDragging] = useState(false);
@@ -28,14 +32,14 @@ export function TopologyGraph({ floor, onSelect }: Props) {
 
   const visibleNodes = useMemo(
     () => topoNodes.filter((n) => floor === 'all' || n.floor === 0 || n.floor === floor),
-    [floor],
+    [floor, topoNodes],
   );
   const visibleIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
   const visibleEdges = useMemo(
     () => topoEdges.filter((e) => visibleIds.has(e.source) && visibleIds.has(e.target)),
-    [visibleIds],
+    [visibleIds, topoEdges],
   );
-  const nodeById = useMemo(() => new Map(topoNodes.map((n) => [n.id, n])), []);
+  const nodeById = useMemo(() => new Map(topoNodes.map((n) => [n.id, n])), [topoNodes]);
 
   function onWheel(e: React.WheelEvent) {
     e.preventDefault();

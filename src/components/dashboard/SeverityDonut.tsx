@@ -1,7 +1,8 @@
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { severityBreakdown } from '../../data/metrics';
+import { severityBreakdown as seededSeverityBreakdown } from '../../data/metrics';
 
-export function SeverityDonut() {
+export function SeverityDonut({ data }: { data?: { name: string; value: number; color: string }[] }) {
+  const severityBreakdown = data ?? seededSeverityBreakdown;
   const total = severityBreakdown.reduce((s, d) => s + d.value, 0);
   return (
     <div className="flex h-full flex-col">

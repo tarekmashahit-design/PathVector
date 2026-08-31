@@ -57,12 +57,16 @@ async def connect(body: ConnectRequest):
     topology = live_builder.build_topology(switch_device, neighbor_devices, neighbors_raw)
     alerts = live_builder.build_alerts(switch_device)
     dashboard = live_builder.build_dashboard_stats(switch_device, neighbor_devices, alerts)
+    all_devices = [switch_device, *neighbor_devices]
 
     session = live_session_store.create_session(ip, username, password, secret)
     session.dashboard = dashboard
     session.topology = topology
-    session.devices = [switch_device, *neighbor_devices]
+    session.devices = all_devices
     session.alerts = alerts
+    session.bandwidth_series = live_builder.build_bandwidth_series(switch_device)
+    session.severity_breakdown = live_builder.build_severity_breakdown(alerts)
+    session.risk_leaderboard = live_builder.build_risk_leaderboard(all_devices)
     session.last_config = outputs.get("running_config", "")
 
     return {
@@ -93,6 +97,9 @@ async def get_dashboard(x_session_token: str | None = Header(default=None)):
     return {
         "stats": session.dashboard,
         "alerts": session.alerts,
+        "bandwidthSeries": session.bandwidth_series,
+        "severityBreakdown": session.severity_breakdown,
+        "riskLeaderboard": session.risk_leaderboard,
     }
 
 

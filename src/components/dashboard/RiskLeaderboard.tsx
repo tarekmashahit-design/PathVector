@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
-import { riskLeaderboard } from '../../data/metrics';
+import { riskLeaderboard as seededRiskLeaderboard, type RiskDevice } from '../../data/metrics';
 import { cn } from '../../lib/cn';
 
 function riskColor(risk: number) {
@@ -9,7 +9,8 @@ function riskColor(risk: number) {
   return '#38BDF8';
 }
 
-export function RiskLeaderboard() {
+export function RiskLeaderboard({ data }: { data?: RiskDevice[] }) {
+  const riskLeaderboard = data ?? seededRiskLeaderboard;
   return (
     <div>
       <h3 className="font-display text-sm font-semibold text-text-bright">Devices Needing Attention</h3>

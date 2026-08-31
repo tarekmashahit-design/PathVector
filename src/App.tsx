@@ -6,6 +6,7 @@ import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { Onboarding } from './pages/Onboarding';
 import { ModeSelect } from './pages/ModeSelect';
+import { LiveConnect } from './pages/LiveConnect';
 import { DemoUpload } from './pages/DemoUpload';
 import { DemoAnalysis } from './pages/DemoAnalysis';
 import { Dashboard } from './pages/Dashboard';
@@ -29,6 +30,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/app/mode" element={<ModeSelect />} />
+        <Route path="/app/live/connect" element={<LiveConnect />} />
         <Route path="/app/demo" element={<DemoUpload />} />
         <Route path="/app/demo/:sessionId/analysis" element={<DemoAnalysis />} />
         <Route path="/app/demo/:sessionId" element={<DemoShell />}>

@@ -1,11 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, MoreHorizontal } from 'lucide-react';
-import { devices, type DeviceType, type DeviceStatus } from '../data/devices';
+import { Search, MoreHorizontal, Loader2 } from 'lucide-react';
+import { type Device, type DeviceType, type DeviceStatus } from '../data/devices';
 import { DeviceIcon, deviceTypeLabel } from '../components/icons/DeviceIcon';
 import { StatusBadge, Badge } from '../components/primitives/Badge';
 import { SlideOver } from '../components/primitives/SlideOver';
 import { DeviceDetailPanel } from '../components/devices/DeviceDetailPanel';
+import { useRequireLiveSession } from '../hooks/useRequireLiveSession';
+import { fetchLiveDevices, LiveSessionError } from '../lib/liveApi';
 import { cn } from '../lib/cn';
 
 const typeOptions: DeviceType[] = ['router', 'core-switch', 'access-switch', 'ap', 'server', 'endpoint'];
@@ -23,11 +26,40 @@ function MiniBar({ value, color }: { value: number; color: string }) {
 }
 
 export function Devices() {
+  const hasSession = useRequireLiveSession();
+  const navigate = useNavigate();
+
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<DeviceType | null>(null);
   const [statusFilter, setStatusFilter] = useState<DeviceStatus | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sortAsc, setSortAsc] = useState(true);
+
+  useEffect(() => {
+    if (!hasSession) return;
+    let cancelled = false;
+    setLoading(true);
+    fetchLiveDevices()
+      .then((data) => {
+        if (cancelled) return;
+        setDevices(data.devices);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (err instanceof LiveSessionError) {
+          navigate('/app/live/connect', { replace: true });
+          return;
+        }
+        setError(err instanceof Error ? err.message : 'Failed to load live devices');
+      })
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [hasSession, navigate]);
 
   const filtered = useMemo(() => {
     let list = devices.filter((d) => {
@@ -38,9 +70,18 @@ export function Devices() {
     });
     list = [...list].sort((a, b) => (sortAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)));
     return list;
-  }, [query, typeFilter, statusFilter, sortAsc]);
+  }, [devices, query, typeFilter, statusFilter, sortAsc]);
 
   const selectedDevice = selectedId ? devices.find((d) => d.id === selectedId) : undefined;
+
+  if (loading) {
+    return (
+      <div className="flex h-[calc(100vh-64px)] items-center justify-center gap-3 text-text-muted">
+        <Loader2 size={16} className="animate-spin" />
+        <span className="font-mono text-xs">{error ?? 'Loading live devices…'}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-[1440px] space-y-4 p-6">

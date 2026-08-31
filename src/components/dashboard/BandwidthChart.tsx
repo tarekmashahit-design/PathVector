@@ -1,5 +1,5 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { bandwidthSeries } from '../../data/metrics';
+import { bandwidthSeries as seededBandwidthSeries } from '../../data/metrics';
 
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -11,7 +11,8 @@ function ChartTooltip({ active, payload, label }: any) {
   );
 }
 
-export function BandwidthChart() {
+export function BandwidthChart({ data }: { data?: { hour: string; mbps: number }[] }) {
+  const bandwidthSeries = data ?? seededBandwidthSeries;
   const latest = bandwidthSeries[bandwidthSeries.length - 1];
   return (
     <div>

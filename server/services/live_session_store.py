@@ -25,6 +25,9 @@ class LiveSession:
     topology: dict | None = None
     devices: list[dict] | None = None
     alerts: list[dict] | None = None
+    bandwidth_series: list[dict] | None = None
+    severity_breakdown: list[dict] | None = None
+    risk_leaderboard: list[dict] | None = None
     last_config: str | None = None
     conversation: list[dict[str, str]] = field(default_factory=list)
 
