@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
-from routers import demo  # noqa: E402 (must come after load_dotenv)
+from routers import demo, live  # noqa: E402 (must come after load_dotenv)
 
 app = FastAPI(title="PathVector Demo API")
 
@@ -23,6 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(demo.router)
+app.include_router(live.router)
 
 
 @app.get("/api/health")
