@@ -7,8 +7,8 @@ import { AmbientNetworkCanvas } from '../components/topology/AmbientNetworkCanva
 import { Logomark } from '../components/icons/Logomark';
 import { FloatingInput } from '../components/primitives/FloatingInput';
 import { Button } from '../components/primitives/Button';
-import { SegmentedControl } from '../components/primitives/SegmentedControl';
 import { GoogleIcon, GithubIcon, MicrosoftIcon } from '../components/login/ProviderIcons';
+import { login } from '../lib/authApi';
 
 const chips = [
   { label: '47 devices monitored', x: '12%', y: '20%', delay: 0 },
@@ -24,11 +24,10 @@ const testimonials = [
 
 export function Login() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [testimonialIdx, setTestimonialIdx] = useState(0);
 
@@ -37,22 +36,21 @@ export function Login() {
     return () => clearInterval(t);
   }, []);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setError(false);
-    setTimeout(() => {
-      if (username === 'admin' && password === 'pathvector') {
-        setLoading(false);
-        setSuccess(true);
-        localStorage.setItem('pv_auth', '1');
-        setTimeout(() => navigate('/app/mode'), 650);
-      } else {
-        setLoading(false);
-        setError(true);
-        toast.error('Invalid username or password');
-      }
-    }, 800);
+    setError(null);
+    try {
+      await login(email.trim(), password);
+      setLoading(false);
+      setSuccess(true);
+      setTimeout(() => navigate('/app/mode'), 650);
+    } catch (err) {
+      setLoading(false);
+      const message = err instanceof Error ? err.message : 'Sign in failed';
+      setError(message);
+      toast.error(message);
+    }
   }
 
   return (
@@ -104,51 +102,31 @@ export function Login() {
             <span className="font-display text-base font-semibold text-text-bright">PathVector</span>
           </Link>
 
-          <h1 className="mt-8 font-display text-2xl font-semibold text-text-bright">
-            {mode === 'signin' ? 'Welcome back' : 'Create your account'}
-          </h1>
+          <h1 className="mt-8 font-display text-2xl font-semibold text-text-bright">Welcome back</h1>
 
-          <div className="mt-5">
-            <SegmentedControl
-              value={mode}
-              onChange={setMode}
-              options={[
-                { label: 'Sign in', value: 'signin' },
-                { label: 'Create account', value: 'signup' },
-              ]}
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <motion.div animate={error ? { x: [0, -10, 10, -10, 10, 0] } : {}} transition={{ duration: 0.4 }}>
+              <FloatingInput label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+            </motion.div>
+            <motion.div animate={error ? { x: [0, -10, 10, -10, 10, 0] } : {}} transition={{ duration: 0.4, delay: 0.03 }}>
+              <FloatingInput label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+            </motion.div>
 
-          <AnimatePresence mode="wait">
-            <motion.form
-              key={mode}
-              initial={{ opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -12 }}
-              transition={{ duration: 0.25 }}
-              onSubmit={handleSubmit}
-              className="mt-6 space-y-4"
-            >
-              <motion.div animate={error ? { x: [0, -10, 10, -10, 10, 0] } : {}} transition={{ duration: 0.4 }}>
-                <FloatingInput label="Username" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" />
-              </motion.div>
-              <motion.div animate={error ? { x: [0, -10, 10, -10, 10, 0] } : {}} transition={{ duration: 0.4, delay: 0.03 }}>
-                <FloatingInput label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-              </motion.div>
+            {error && <p className="text-xs text-red">{error}</p>}
 
-              {error && <p className="text-xs text-red">Invalid credentials. Try admin / pathvector.</p>}
+            <div className="flex items-center justify-between">
+              <Link to="/register" className="text-xs text-text-muted hover:text-text-bright">
+                Create an account
+              </Link>
+              <a href="#" className="text-xs text-text-muted hover:text-text-bright">
+                Forgot password?
+              </a>
+            </div>
 
-              <div className="flex justify-end">
-                <a href="#" className="text-xs text-text-muted hover:text-text-bright">
-                  Forgot password?
-                </a>
-              </div>
-
-              <Button type="submit" className="w-full" disabled={loading} sheen>
-                {loading ? <Loader2 size={15} className="animate-spin" /> : mode === 'signin' ? 'Sign in' : 'Create account'}
-              </Button>
-            </motion.form>
-          </AnimatePresence>
+            <Button type="submit" className="w-full" disabled={loading} sheen>
+              {loading ? <Loader2 size={15} className="animate-spin" /> : 'Sign in'}
+            </Button>
+          </form>
 
           <div className="my-6 flex items-center gap-3">
             <div className="h-px flex-1 bg-border-subtle" />
@@ -173,8 +151,6 @@ export function Login() {
               </button>
             ))}
           </div>
-
-          <p className="mt-6 font-mono text-[11px] text-text-faint">Demo credentials: admin / pathvector</p>
         </motion.div>
 
         <AnimatePresence>

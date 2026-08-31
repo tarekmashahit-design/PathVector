@@ -1,5 +1,6 @@
-import { Navigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { useOnboardingStore } from '../store/onboardingStore';
+import { useRequireAuth } from '../hooks/useRequireAuth';
 import { Step1Organization } from '../components/onboarding/Step1Organization';
 import { Step2Sites } from '../components/onboarding/Step2Sites';
 import { Step3Discovery } from '../components/onboarding/Step3Discovery';
@@ -24,9 +25,15 @@ const steps = [
 
 export function Onboarding() {
   const currentStep = useOnboardingStore((s) => s.currentStep);
+  const authStatus = useRequireAuth();
 
-  if (typeof window !== 'undefined' && localStorage.getItem('pv_auth') !== '1') {
-    return <Navigate to="/login" replace />;
+  if (authStatus === 'checking') {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center gap-3 bg-base text-text-muted">
+        <Loader2 size={16} className="animate-spin" />
+        <span className="font-mono text-xs">Checking session…</span>
+      </div>
+    );
   }
 
   const StepComponent = steps[currentStep - 1] ?? Step1Organization;

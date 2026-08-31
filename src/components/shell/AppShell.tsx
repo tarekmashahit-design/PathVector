@@ -1,17 +1,25 @@
 import { AnimatePresence } from 'framer-motion';
-import { Outlet, useLocation, Navigate } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { PageTransition } from './PageTransition';
 import { VemoDrawer } from '../vemo/VemoDrawer';
 import { NotificationPanel } from '../notifications/NotificationPanel';
 import { AppShellProvider } from '../../context/AppShellContext';
+import { useRequireAuth } from '../../hooks/useRequireAuth';
 
 function AppShellInner() {
   const location = useLocation();
+  const authStatus = useRequireAuth();
 
-  if (typeof window !== 'undefined' && localStorage.getItem('pv_auth') !== '1') {
-    return <Navigate to="/login" replace />;
+  if (authStatus === 'checking') {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center gap-3 bg-base text-text-muted">
+        <Loader2 size={16} className="animate-spin" />
+        <span className="font-mono text-xs">Checking session…</span>
+      </div>
+    );
   }
 
   return (

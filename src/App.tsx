@@ -4,6 +4,7 @@ import { DemoShell } from './components/demo/DemoShell';
 import { ToastProvider } from './components/primitives/ToastProvider';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { Onboarding } from './pages/Onboarding';
 import { ModeSelect } from './pages/ModeSelect';
 import { LiveConnect } from './pages/LiveConnect';
@@ -28,6 +29,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/app/mode" element={<ModeSelect />} />
         <Route path="/app/live/connect" element={<LiveConnect />} />

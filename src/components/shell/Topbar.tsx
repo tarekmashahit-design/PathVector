@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Search, Bell, ChevronDown, User, Settings, Moon, LogOut } from 'lucide-react';
 import { useAppShell } from '../../context/AppShellContext';
 import { clockTime } from '../../lib/format';
 import { cn } from '../../lib/cn';
+import { logout } from '../../lib/authApi';
+import { clearLiveSessionToken } from '../../lib/liveApi';
 
 const titles: Record<string, { title: string; context: string }> = {
   dashboard: { title: 'Dashboard', context: 'Dashboard · Live' },
@@ -17,6 +19,7 @@ const titles: Record<string, { title: string; context: string }> = {
 
 export function Topbar() {
   const { currentSection, notifOpen, setNotifOpen, liveEvents } = useAppShell();
+  const navigate = useNavigate();
   const [now, setNow] = useState(new Date());
   const [userMenu, setUserMenu] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -111,7 +114,14 @@ export function Topbar() {
                     </button>
                   ))}
                   <div className="my-1 border-t border-border-subtle" />
-                  <button className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-red hover:bg-red/10">
+                  <button
+                    onClick={() => {
+                      logout();
+                      clearLiveSessionToken();
+                      navigate('/login', { replace: true });
+                    }}
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-red hover:bg-red/10"
+                  >
                     <LogOut size={15} strokeWidth={1.75} />
                     Log out
                   </button>
