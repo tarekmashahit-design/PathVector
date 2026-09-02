@@ -1,4 +1,11 @@
-"""AI diagnosis service — Mistral Nemotron via the NVIDIA NIM API."""
+"""AI diagnosis service — OpenAI-compatible chat completions.
+
+Defaults to Groq (openai/gpt-oss-120b) after NVIDIA NIM's mistral-nemotron
+backend became unreliable. The env var names still say NVIDIA_NIM_* for
+historical reasons, but they now generically configure whichever
+OpenAI-compatible provider is in use — swap the base URL/model to point
+elsewhere without any code changes.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -23,7 +30,7 @@ def _get_client() -> AsyncOpenAI:
     if not api_key:
         raise RuntimeError("NVIDIA_NIM_API_KEY is not set. Add it to server/.env.")
     return AsyncOpenAI(
-        base_url=os.environ.get("NVIDIA_NIM_BASE_URL", "https://integrate.api.nvidia.com/v1"),
+        base_url=os.environ.get("NVIDIA_NIM_BASE_URL", "https://api.groq.com/openai/v1"),
         api_key=api_key,
         timeout=20.0,
         max_retries=1,
@@ -31,7 +38,14 @@ def _get_client() -> AsyncOpenAI:
 
 
 def _model() -> str:
-    return os.environ.get("NVIDIA_NIM_MODEL", "mistralai/mistral-nemotron")
+    return os.environ.get("NVIDIA_NIM_MODEL", "openai/gpt-oss-120b")
+
+
+def _reasoning_kwargs() -> dict:
+    # gpt-oss models spend part of the token budget on a hidden reasoning
+    # trace before the real answer; "low" keeps that overhead small so the
+    # existing max_tokens budgets below reliably leave room for real content.
+    return {"reasoning_effort": "low"} if "gpt-oss" in _model() else {}
 
 
 def _strip_markdown(text: str) -> str:
@@ -99,8 +113,9 @@ async def diagnose_finding(finding: Finding) -> dict:
             {"role": "system", "content": FINDING_SYSTEM_PROMPT},
             {"role": "user", "content": user_message},
         ],
-        max_tokens=300,
+        max_tokens=500,
         temperature=0.3,
+        **_reasoning_kwargs(),
     )
     text = resp.choices[0].message.content or ""
     cleaned, confidence = _extract_confidence(text)
@@ -136,8 +151,9 @@ async def summarize(findings: list[Finding]) -> str:
             {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
             {"role": "user", "content": _findings_brief(findings)},
         ],
-        max_tokens=300,
+        max_tokens=500,
         temperature=0.3,
+        **_reasoning_kwargs(),
     )
     await asyncio.sleep(_CALL_DELAY_SECONDS)
     return _strip_markdown((resp.choices[0].message.content or "").strip()).strip()
@@ -159,7 +175,7 @@ async def chat(message: str, topology: Topology, findings: list[Finding], histor
         messages.append(turn)
     messages.append({"role": "user", "content": message})
 
-    resp = await _complete_with_retry(model=_model(), messages=messages, max_tokens=400, temperature=0.4)
+    resp = await _complete_with_retry(model=_model(), messages=messages, max_tokens=600, temperature=0.4, **_reasoning_kwargs())
     text = resp.choices[0].message.content or ""
     cleaned, confidence = _extract_confidence(text, default=85)
     return {"response": cleaned, "confidence": confidence}

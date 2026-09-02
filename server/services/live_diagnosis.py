@@ -29,7 +29,7 @@ def _get_client() -> AsyncOpenAI:
     if not api_key:
         raise RuntimeError("NVIDIA_NIM_API_KEY is not set. Add it to server/.env.")
     return AsyncOpenAI(
-        base_url=os.environ.get("NVIDIA_NIM_BASE_URL", "https://integrate.api.nvidia.com/v1"),
+        base_url=os.environ.get("NVIDIA_NIM_BASE_URL", "https://api.groq.com/openai/v1"),
         api_key=api_key,
         timeout=20.0,
         max_retries=1,
@@ -37,7 +37,11 @@ def _get_client() -> AsyncOpenAI:
 
 
 def _model() -> str:
-    return os.environ.get("NVIDIA_NIM_MODEL", "mistralai/mistral-nemotron")
+    return os.environ.get("NVIDIA_NIM_MODEL", "openai/gpt-oss-120b")
+
+
+def _reasoning_kwargs() -> dict:
+    return {"reasoning_effort": "low"} if "gpt-oss" in _model() else {}
 
 
 def _strip_markdown(text: str) -> str:
@@ -99,7 +103,7 @@ async def chat(
         messages.append(turn)
     messages.append({"role": "user", "content": message})
 
-    resp = await _complete_with_retry(model=_model(), messages=messages, max_tokens=400, temperature=0.4)
+    resp = await _complete_with_retry(model=_model(), messages=messages, max_tokens=600, temperature=0.4, **_reasoning_kwargs())
     text = resp.choices[0].message.content or ""
     cleaned, confidence = _extract_confidence(text)
     return {"response": cleaned, "confidence": confidence}
